@@ -1,0 +1,13 @@
+langchain
+langchain-community
+sentence-transformers
+faiss-cpu
+numpy
+pickle5
+python-dotenv
+google-generativeai
+PyPDF2
+unstructured
+pandas
+python-docx
+openpyxl
