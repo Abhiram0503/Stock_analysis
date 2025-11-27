@@ -7,7 +7,6 @@
 
 # load_dotenv(dotenv_path=ENV_PATH)
 # #print("[DEBUG] Key (inside app):", os.getenv("GROQ_API_KEY"))
-# api_key = "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"
 # print("[DEBUG] Key loaded:", api_key)
 
 # llm = ChatGroq(groq_api_key=api_key, model_name="openai/gpt-oss-20b")
