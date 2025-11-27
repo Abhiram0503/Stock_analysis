@@ -81,7 +81,7 @@ class RAGSearch:
         # -------------------------------
         # Initialize Groq LLM
         # -------------------------------
-        groq_api_key = "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"
+        groq_api_key = os.getenv("GROQ_API_KEY")
         print(f"[DEBUG] Loaded GROQ_API_KEY: {groq_api_key}")
 
         if not groq_api_key:
