@@ -17,15 +17,17 @@ from typing import Dict, Any, List
 
 import pandas as pd
 import yfinance as yf
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+# from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
-# phidata imports
 from phi.agent import Agent, RunResponse
+
 # from phi.model.openai import OpenAIChat  # requires OPENAI_API_KEY if used
 # from phi.model.ollama import Ollama
 from phi.model.google import Gemini
-from phi.tools.duckduckgo import DuckDuckGo
-from phi.storage.agent.sqlite import SqlAgentStorage
+
+# from phi.tools.duckduckgo import DuckDuckGo
+
+# from phi.storage.agent.sqlite import SqlAgentStorage
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -39,57 +41,8 @@ PERSIST_TABLE = "predictions"   # our lightweight memory table
 PHIDATA_SESSION_TABLE = "agent_sessions"
 
 # Example Indian tickers (NSE suffix .NS). Replace/add tickers you care about.
-# TICKERS = ["INDIGO.NS", "BHEL.NS", "ETERNAL.NS"]
-TICKERS = ["INDIGO.NS"]
-
-# # ---------- Helpers ----------
-# def ensure_db():
-#     conn = sqlite3.connect(DB_FILE)
-#     c = conn.cursor()
-#     c.execute(f"""
-#         CREATE TABLE IF NOT EXISTS {PERSIST_TABLE} (
-#             id INTEGER PRIMARY KEY AUTOINCREMENT,
-#             ticker TEXT,
-#             created_at TEXT,
-#             horizon_days INTEGER,
-#             prediction TEXT,
-#             confidence REAL,
-#             signals_json TEXT,
-#             outcome_return REAL,
-#             outcome_label TEXT
-#         )
-#     """)
-#     conn.commit()
-#     conn.close()
-
-
-# def save_prediction(record: Dict[str, Any]):
-#     conn = sqlite3.connect(DB_FILE)
-#     c = conn.cursor()
-#     c.execute(f"""
-#         INSERT INTO {PERSIST_TABLE} (
-#             ticker, created_at, horizon_days, prediction, confidence, signals_json
-#         ) VALUES (?, ?, ?, ?, ?, ?)
-#     """, (
-#         record["ticker"],
-#         record["created_at"],
-#         record["horizon_days"],
-#         record["prediction"],
-#         float(record["confidence"]),
-#         str(record["signals"])
-#     ))
-#     conn.commit()
-#     conn.close()
-
-
-# def update_outcome(row_id: int, outcome_return: float, outcome_label: str):
-#     conn = sqlite3.connect(DB_FILE)
-#     c = conn.cursor()
-#     c.execute(f"""
-#         UPDATE {PERSIST_TABLE} SET outcome_return=?, outcome_label=? WHERE id=?
-#     """, (outcome_return, outcome_label, row_id))
-#     conn.commit()
-#     conn.close()
+TICKERS = ["INDIGO.NS", "BHEL.NS", "SBISILVER.NS"]
+# TICKERS = ["INDIGO.NS"]
 
 
 # ---------- Programmatic Agents ----------
@@ -211,28 +164,25 @@ def regime_detector(volatility: float) -> str:
     return "high_vol"
 
 
-# ---------- Simple Sentiment combining (fallback if LLM not used) ----------
-vader = SentimentIntensityAnalyzer()
+# # ---------- Simple Sentiment combining (fallback if LLM not used) ----------
+# vader = SentimentIntensityAnalyzer()
 
-def aggregate_news_sentiment(snippets: List[str]) -> float:
-    if not snippets:
-        return 0.0
-    scores = [vader.polarity_scores(s)["compound"] for s in snippets]
-    return float(sum(scores) / len(scores))
+# def aggregate_news_sentiment(snippets: List[str]) -> float:
+#     if not snippets:
+#         return 0.0
+#     scores = [vader.polarity_scores(s)["compound"] for s in snippets]
+#     return float(sum(scores) / len(scores))
 
 
 # ---------- Runner / Orchestration ----------
 def main(tickers: List[str]):
-    # ensure_db()
 
-    # # Optional: add phidata sqlite storage (agent sessions) for later debugging
-    # storage = SqlAgentStorage(table_name=PHIDATA_SESSION_TABLE, db_file=DB_FILE)
 
     # Create Phidata agents (you can reuse the same model instance or change per agent)
     news_agent = create_news_agent()
     fusion_agent = create_fusion_agent()
 
-    # horizon_days = 30  # predict 30-day outcome by default
+    horizon_days = 30  # predict 30-day outcome by default
 
     all_recs = []
     for ticker in tickers:
@@ -299,7 +249,7 @@ def main(tickers: List[str]):
             "price_momentum_30d": price_signals["price_momentum_30d"],
             "volatility_30d": price_signals["volatility_30d"],
             "fundamental_score": fund_signals["fundamental_score"],
-            "news_sentiment": float(news_sentiment),
+            "news_sentiment": float(news_sentiment)if news_sentiment is not None else 0.0,
             "regime": regime,
         }
 
@@ -365,9 +315,7 @@ def main(tickers: List[str]):
             "summary_text": summary_text,
         }
 
-        # Save prediction to memory (sqlite)
-        save_prediction(rec)
-        all_recs.append(rec)
+
         print("Recommendation:", decision, "score:", final_score, "confidence:", confidence)
         print("explanation:", explanation)
         # small throttle for APIs
@@ -377,10 +325,6 @@ def main(tickers: List[str]):
     print("\n=== BATCH RECOMMENDATIONS ===")
     for r in all_recs:
         print(r["ticker"], r["prediction"], round(r["final_score"], 3), f"(conf {r['confidence']:.2f})")
-
-    # Example: you would run an evaluation job later that checks actual returns after horizon_days
-    print("\nSaved predictions to sqlite memory. Use a scheduled job to evaluate outcomes after horizon_days.")
-    print("Done.")
 
 
 if __name__ == "__main__":
